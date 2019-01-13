@@ -1,6 +1,8 @@
-package edu.xmu.networkingModel.eventDrivenConponent;
+package edu.xmu.networkingModel;
 
 import edu.xmu.baseConponent.http.HttpContext;
+import edu.xmu.networkingModel.MultiplexingIOConponent.ReadThread;
+import edu.xmu.networkingModel.MultiplexingIOConponent.WriteThread;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -15,18 +17,22 @@ import java.util.concurrent.*;
 
 /**
  * @Program: soldier
- * @Description: 事件驱动网络模型的服务器
+ * @Description: 同步非阻塞IO服务器
+ *                  事件驱动的网络模型
  * @Author: Ackerman
  * @Create: 2019-01-11 10:17
  */
-public class EventDrivenServer {
-    private int   port = 8080;
+public class MultiplexingIOServer {
+    private int   port = 8003;
+    private Selector selector;
+
     private int   corePoolSize = 2;
     private int   maxPoolSize  = 4;
     private long keepAliveTime = 10;
     private ArrayBlockingQueue<Runnable> workQueue = new ArrayBlockingQueue<Runnable>(1000);
-    private Selector selector;
     private ExecutorService threadPoolExecutor;
+
+
 
     private void initConfiguration() {
         threadPoolExecutor = new ThreadPoolExecutor(
@@ -106,6 +112,11 @@ public class EventDrivenServer {
                         key.interestOps(key.interestOps() & (~SelectionKey.OP_WRITE));
                         HttpContext httpContext = (HttpContext) key.attachment();
                         // TODO with writeThread
+
+//                        System.out.println(httpContext.getRequest());
+
+                        WriteThread writeThread = new WriteThread(httpContext);
+                        threadPoolExecutor.execute(writeThread);
                     }
                 } catch (IOException ioe) {
                     ioe.printStackTrace();

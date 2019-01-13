@@ -1,8 +1,6 @@
-package edu.xmu.networkingModel;
+package edu.xmu.networkingModel.multiplexingIOComponent;
 
 import edu.xmu.baseConponent.http.HttpContext;
-import edu.xmu.networkingModel.MultiplexingIOConponent.ReadThread;
-import edu.xmu.networkingModel.MultiplexingIOConponent.WriteThread;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -105,18 +103,18 @@ public class MultiplexingIOServer {
                         key.interestOps(key.interestOps() & (~SelectionKey.OP_READ));
                         HttpContext httpContext = (HttpContext) key.attachment();
                         // TODO with readthread
-                        ReadThread readThread = new ReadThread(httpContext);
-                        threadPoolExecutor.execute(readThread);
+                        MultiplexingReadRunnable multiplexingReadRunnable = new MultiplexingReadRunnable(httpContext);
+                        threadPoolExecutor.execute(multiplexingReadRunnable);
                     }
                     else if (key.isWritable()) {
                         key.interestOps(key.interestOps() & (~SelectionKey.OP_WRITE));
                         HttpContext httpContext = (HttpContext) key.attachment();
-                        // TODO with writeThread
+                        // TODO with multiplexingWriteRunnable
 
 //                        System.out.println(httpContext.getRequest());
 
-                        WriteThread writeThread = new WriteThread(httpContext);
-                        threadPoolExecutor.execute(writeThread);
+                        MultiplexingWriteRunnable multiplexingWriteRunnable = new MultiplexingWriteRunnable(httpContext);
+                        threadPoolExecutor.execute(multiplexingWriteRunnable);
                     }
                 } catch (IOException ioe) {
                     ioe.printStackTrace();

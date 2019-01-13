@@ -17,7 +17,7 @@ import java.nio.channels.SocketChannel;
  * @Author: Ackerman
  * @Create: 2019-01-11 10:49
  */
-public class ReadThread implements Runnable {
+public class MultiplexingReadRunnable implements Runnable {
     private static RequestParseUtil requestParseUtil = RequestParseUtil.getInstance();
     private static int MAX_BUF = 1024;
     private HttpContext httpContext;
@@ -25,7 +25,7 @@ public class ReadThread implements Runnable {
     private Selector selector;
 
 
-    public ReadThread(HttpContext httpContext) {
+    public MultiplexingReadRunnable(HttpContext httpContext) {
         this.httpContext = httpContext;
         this.key = httpContext.getSelectionKey();
         this.selector = httpContext.getSelector();

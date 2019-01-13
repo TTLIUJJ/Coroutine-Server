@@ -17,7 +17,6 @@ import java.util.Map;
  */
 public class RequestParseUtil {
     private static volatile RequestParseUtil requestParseUtil;
-    private static int MAX_BUF = 5;
 
     /**
      * @Description: 线程安全的单例模式
@@ -34,70 +33,71 @@ public class RequestParseUtil {
         return requestParseUtil;
     }
 
-    /**
-     * @Description: 处理从缓冲区获取MAX_BUF的数据, 进行处理
-     *               可能从缓冲区读到cnt个字节, 可能的大小如下:
-     *               cnt <  0: 读取发生错误, 返回PARSE_ERROR
-     *               cnt == 0: 假唤醒,      返回PARSE_MORE
-     *               cnt >  0: 解析数据流,  返回解析结果state
-     *
-     * @Date  : 2019/1/11
-     * @Param : HTTP的上下文
-     * @Return: 请求状态
-     */
-    public RequestParseState recvFrom(HttpContext httpContext) {
-        SelectionKey key     = httpContext.getSelectionKey();
-        SocketChannel client = (SocketChannel) key.channel();
-        ByteBuffer buffer    = ByteBuffer.allocate(MAX_BUF);
-
-        RequestMessage rs = httpContext.getRequest().getRequestMessage();
-        RequestParseState state = rs.getState();
-        int nread;
-
-        try {
-            while ((nread = client.read(buffer)) != -1) {
-                rs.setPbuf(0);
-                if (nread < 0) {
-                    return RequestParseState.PARSE_ERROR;
-                }
-                else if (nread == 0) {  // 只有当client管道读不出更多的数据, 才需要向内核缓冲区索要数据
-                    return RequestParseState.PARSE_MORE;
-                }
-                else {
-                    byte []bytes = buffer.array();
-
-//                    for (int i = 0; i < nread; ++i) {
-//                        char ch = (char) bytes[i];
-//                        System.out.print(ch);
+//    /**
+//     * @Description: 处理从缓冲区获取MAX_BUF的数据, 进行处理
+//     *               可能从缓冲区读到cnt个字节, 可能的大小如下:
+//     *               cnt <  0: 读取发生错误, 返回PARSE_ERROR
+//     *               cnt == 0: 假唤醒,      返回PARSE_MORE
+//     *               cnt >  0: 解析数据流,  返回解析结果state
+//     *
+//     * @Date  : 2019/1/11
+//     * @Param : HTTP的上下文
+//     * @Return: 请求状态
+//     */
+//    public RequestState recvFrom(HttpContext httpContext) {
+//        SelectionKey key     = httpContext.getSelectionKey();
+//        SocketChannel client = (SocketChannel) key.channel();
+//        ByteBuffer buffer    = ByteBuffer.allocate(MAX_BUF);
+//
+//        RequestMessage rs = httpContext.getRequest().getRequestMessage();
+//        RequestState state = rs.getState();
+//        int nread;
+//
+//        try {
+//            while ((nread = client.read(buffer)) != -1) {
+//                rs.setPbuf(0);
+//
+//                if (nread < 0) {
+//                    return RequestState.PARSE_ERROR;
+//                }
+//                else if (nread == 0) {  // 只有当client管道读不出更多的数据, 才需要向内核缓冲区索要数据
+//                    return RequestState.PARSE_MORE;
+//                }
+//                else {
+//                    byte []bytes = buffer.array();
+//
+////                    for (int i = 0; i < nread; ++i) {
+////                        char ch = (char) bytes[i];
+////                        System.out.print(ch);
+////                    }
+//
+//                    buffer.flip();  // 更新buffer pos的位置
+//
+//                    if (!rs.isFinishLine()) {
+//                        state = parseHttpRequestLine(rs, bytes);
 //                    }
-                    buffer.flip();  // 更新buffer pos的位置
-
-                    if (!rs.isFinishLine()) {
-                        state = parseHttpRequestLine(httpContext, bytes);
-                    }
-                    if (state == RequestParseState.PARSE_OK ||
-                            state == RequestParseState.PARSE_ERROR) {
-                        return state;
-                    }
-
-                    if (!rs.isFinishHeader()) {
-                        state = parseHttpRequestHeader(httpContext, bytes);
-                    }
-
-                    if (state == RequestParseState.PARSE_OK ||
-                            state == RequestParseState.PARSE_ERROR) {
-                        return state;
-                    }
-
-                }
-
-            }
-        } catch (IOException ioe) {
-            ioe.printStackTrace();
-        }
-
-        return state;
-    }
+//                    if (state == RequestState.PARSE_OK ||
+//                            state == RequestState.PARSE_ERROR) {
+//
+//                        return state;
+//                    }
+//
+//                    if (!rs.isFinishHeader()) {
+//                        state = parseHttpRequestHeader(rs, bytes);
+//                    }
+//                    if (state == RequestState.PARSE_OK ||
+//                            state == RequestState.PARSE_ERROR) {
+//
+//                        return state;
+//                    }
+//                }
+//            }
+//        } catch (IOException ioe) {
+//            ioe.printStackTrace();
+//        }
+//
+//        return state;
+//    }
 
 
     /**
@@ -108,10 +108,10 @@ public class RequestParseUtil {
      * @Return: 请求的状态
      * TODO: 带?的uri请求格式
      */
-    public RequestParseState parseHttpRequestLine(HttpContext httpContext, byte[] buf) {
-        RequestMessage rs       = httpContext.getRequest().getRequestMessage();
-        RequestParseState state = rs.getState();
-        RequestParseState error = RequestParseState.PARSE_ERROR;
+    public RequestState parseHttpRequestLine(RequestMessage rs, byte[] buf) {
+//        RequestMessage rs       = httpContext.getRequest().getRequestMessage();
+        RequestState state = rs.getState();
+        RequestState error = RequestState.PARSE_ERROR;
         ArrayList<Byte> message = rs.getMessage();
         int major = 0;
         int minor = 0;
@@ -134,7 +134,7 @@ public class RequestParseUtil {
                     if (!legalMethodAlpha(ch)) {
                         return error;
                     }
-                    state = RequestParseState.LINE_METHOD;
+                    state = RequestState.LINE_METHOD;
                     break;
 
                 case LINE_METHOD:
@@ -143,7 +143,7 @@ public class RequestParseUtil {
                         if (!legalAndSetMethod(rs)) {
                             return error;
                         }
-                        state = RequestParseState.LINE_SPACES_BEFORE_URI;
+                        state = RequestState.LINE_SPACES_BEFORE_URI;
                         break;
                     }
                     if (!legalMethodAlpha(ch)) {
@@ -157,7 +157,7 @@ public class RequestParseUtil {
                             break;
                         case '/':
                             rs.setUriBeg(pos);
-                            state = RequestParseState.LINE_AFTER_SLASH_IN_URI;
+                            state = RequestState.LINE_AFTER_SLASH_IN_URI;
                             break;
                         default:
                             return error;
@@ -170,7 +170,7 @@ public class RequestParseUtil {
                         if (!legalAndSetURI(rs)) {
                             return error;
                         }
-                        state = RequestParseState.LINE_HTTP;
+                        state = RequestState.LINE_HTTP;
                     }
                     break;
 
@@ -179,7 +179,7 @@ public class RequestParseUtil {
                         case ' ':
                             break;
                         case 'H':
-                            state = RequestParseState.LINE_HTTP_H;
+                            state = RequestState.LINE_HTTP_H;
                             break;
                         default:
                             return error;
@@ -189,7 +189,7 @@ public class RequestParseUtil {
                 case LINE_HTTP_H:
                     switch (ch) {
                         case 'T':
-                            state = RequestParseState.LINE_HTTP_HT;
+                            state = RequestState.LINE_HTTP_HT;
                             break;
                         default:
                             return error;
@@ -199,7 +199,7 @@ public class RequestParseUtil {
                 case LINE_HTTP_HT:
                     switch (ch) {
                         case 'T':
-                            state = RequestParseState.LINE_HTTP_HTT;
+                            state = RequestState.LINE_HTTP_HTT;
                             break;
                         default:
                             return error;
@@ -209,7 +209,7 @@ public class RequestParseUtil {
                 case LINE_HTTP_HTT:
                     switch (ch) {
                         case 'P':
-                            state = RequestParseState.LINE_HTTP_HTTP;
+                            state = RequestState.LINE_HTTP_HTTP;
                             break;
                         default:
                             return error;
@@ -219,7 +219,7 @@ public class RequestParseUtil {
                 case LINE_HTTP_HTTP:
                     switch (ch) {
                         case '/':
-                            state = RequestParseState.LINE_FIRST_MAJOR_DIGIT;
+                            state = RequestState.LINE_FIRST_MAJOR_DIGIT;
                             break;
                         default:
                             return error;
@@ -232,12 +232,12 @@ public class RequestParseUtil {
                     }
                     major = ch - '0';
                     rs.setMajor(major);
-                    state = RequestParseState.LINE_MAJOR_DIGIT;
+                    state = RequestState.LINE_MAJOR_DIGIT;
                     break;
 
                 case LINE_MAJOR_DIGIT:
                     if (ch == '.') {
-                        state = RequestParseState.LINE_FIRST_MINOR_DIGIT;
+                        state = RequestState.LINE_FIRST_MINOR_DIGIT;
                     }
                     else if(digit0to9(ch)) {
                         major = major * 10 + (ch - '0');
@@ -254,7 +254,7 @@ public class RequestParseUtil {
                     }
                     minor = ch - '0';
                     rs.setMinor(minor);
-                    state = RequestParseState.LINE_MINOR_DIGIT;
+                    state = RequestState.LINE_MINOR_DIGIT;
                     break;
 
                 case LINE_MINOR_DIGIT:
@@ -265,13 +265,13 @@ public class RequestParseUtil {
                     else {
                         switch (ch) {
                             case ' ':
-                                state = RequestParseState.LINE_SPACES_AFTER_DIGIT;
+                                state = RequestState.LINE_SPACES_AFTER_DIGIT;
                                 break;
                             case '\r':
-                                state = RequestParseState.LINE_CR;
+                                state = RequestState.LINE_CR;
                                 break;
                             case '\n':
-                                return finishParseRequest(rs, RequestParseState.HEADER_START, pos+1, p+1);
+                                return finishParseRequest(rs, RequestState.HEADER_START, pos+1, p+1);
                         }
                     }
 
@@ -280,10 +280,10 @@ public class RequestParseUtil {
                         case ' ':
                             break;
                         case '\r':
-                            state = RequestParseState.LINE_CR;
+                            state = RequestState.LINE_CR;
                             break;
                         case '\n':
-                            return finishParseRequest(rs, RequestParseState.HEADER_START, pos+1, p+1);
+                            return finishParseRequest(rs, RequestState.HEADER_START, pos+1, p+1);
                         default:
                             return error;
                     }
@@ -292,7 +292,7 @@ public class RequestParseUtil {
                 case LINE_CR:
                     switch (ch) {
                         case '\n':
-                            return finishParseRequest(rs, RequestParseState.HEADER_START, pos+1, p+1);
+                            return finishParseRequest(rs, RequestState.HEADER_START, pos+1, p+1);
                         default:
                             return error;
                     }
@@ -319,10 +319,10 @@ public class RequestParseUtil {
      *          buf         函数一次处理的缓冲区大小
      * @Return: 请求解析的状态
      */
-    public RequestParseState parseHttpRequestHeader(HttpContext httpContext, byte[] buf) {
-        RequestMessage       rs = httpContext.getRequest().getRequestMessage();
-        RequestParseState state = rs.getState();
-        RequestParseState error = RequestParseState.PARSE_ERROR;
+    public RequestState parseHttpRequestHeader(RequestMessage rs, byte[] buf) {
+//        RequestMessage       rs = httpContext.getRequest().getRequestMessage();
+        RequestState state = rs.getState();
+        RequestState error = RequestState.PARSE_ERROR;
         ArrayList<Byte> message = rs.getMessage();
         int len = buf.length;
         int pos = rs.getPos();
@@ -344,19 +344,22 @@ public class RequestParseUtil {
 
                         default:
                             rs.setKeyBeg(pos);
-                            state = RequestParseState.HEADER_KEY;
+                            state = RequestState.HEADER_KEY;
                             break;
 
                     }
                     break;
 
                 case HEADER_KEY:
+
                     switch (ch) {
                         case ' ':
+                            rs.setKeyEnd(pos);
+                            state = RequestState.HEADER_SPACES_BEFORE_COLON;
                             break;
                         case ':':
                             rs.setKeyEnd(pos);
-                            state = RequestParseState.HEADER_SPACES_BEFORE_COLON;
+                            state = RequestState.HEADER_SPACES_AFTER_COLON;
                             break;
                     }
                     break;
@@ -365,10 +368,11 @@ public class RequestParseUtil {
                     switch (ch) {
                         case ' ':
                             break;
-                        default:
-                            rs.setValueBeg(pos);
-                            state = RequestParseState.HEADER_SPACES_AFTER_COLON;
+                        case ':':
+                            state = RequestState.HEADER_SPACES_AFTER_COLON;
                             break;
+                        default:
+                            return error;
                     }
                     break;
 
@@ -377,7 +381,8 @@ public class RequestParseUtil {
                         case ' ' :
                             break;
                         default:
-                            state = RequestParseState.HEADER_VALUE;
+                            rs.setValueBeg(pos);
+                            state = RequestState.HEADER_VALUE;
                             break;
                     }
                     break;
@@ -386,8 +391,8 @@ public class RequestParseUtil {
                     switch (ch) {
                         case '\r':
                             rs.setValueEnd(pos);
+                            state = RequestState.HEADER_CR;
                             addHeader(rs);
-                            state = RequestParseState.HEADER_CR;
                             break;
                          default:
                              break;
@@ -397,7 +402,7 @@ public class RequestParseUtil {
                 case HEADER_CR:
                     switch (ch) {
                         case '\n':
-                            state = RequestParseState.HEADER_CRLF;
+                            state = RequestState.HEADER_CRLF;
                             break;
                         default:
                             return error;
@@ -407,15 +412,11 @@ public class RequestParseUtil {
                 case HEADER_CRLF:
                     switch (ch) {
                         case '\r':
-                            state = RequestParseState.HEADER_CRLFCR;
+                            state = RequestState.HEADER_CRLFCR;
                             break;
-                        case '\0':
-                            /* fireFox 使用'\0'代替最后一个空行 */
-                            return finishParseRequest(rs, RequestParseState.PARSE_OK, pos+1, p+1);
-
                         default:
                             rs.setKeyBeg(pos);
-                            state = RequestParseState.HEADER_KEY;
+                            state = RequestState.HEADER_KEY;
                             break;
                     }
                     break;
@@ -423,7 +424,7 @@ public class RequestParseUtil {
                 case HEADER_CRLFCR:
                     switch (ch) {
                         case '\n':
-                            return finishParseRequest(rs, RequestParseState.PARSE_OK, pos+1, p+1);
+                            return finishParseRequest(rs, RequestState.PARSE_OK, pos+1, p+1);
                         default:
                             return error;
                     }
@@ -449,11 +450,15 @@ public class RequestParseUtil {
      * @Return: 返回待解析的状态
      *
      */
-    private RequestParseState finishParseRequest(RequestMessage rs, RequestParseState next, int pos, int pbuf) {
+    private RequestState finishParseRequest(RequestMessage rs, RequestState next, int pos, int pbuf) {
         switch (next) {
             case HEADER_START:
                 rs.setFinishLine(true);
                 break;
+
+//            case BODY_START:
+//                rs.setFinishHeader(true);
+//                break;
         }
 
         rs.setState(next);

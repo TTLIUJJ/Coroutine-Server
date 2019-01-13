@@ -15,6 +15,11 @@ public class HttpContext {
     private Request  request;
     private Response response;
 
+    public HttpContext() {
+        request  = new HttpRequest();
+        response = new HttpResponse();
+    }
+
     public HttpContext(Selector selector, SelectionKey selectionKey) {
         request  = new HttpRequest();
         response = new HttpResponse();

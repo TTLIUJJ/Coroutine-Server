@@ -14,7 +14,7 @@ public class RequestMessage {
     private ArrayList<Byte> message;    // 请求的原始数据
                                         // 可以解决半包和粘包造成的数据丢
 
-    private RequestParseState state;    // 保存当前请求的状态
+    private RequestState state;    // 保存当前请求的状态
     private boolean finishLine;
     private boolean finishHeader;
     private int  pos;                   // 指向当前请求的位置, 也是目前message的位置
@@ -39,7 +39,7 @@ public class RequestMessage {
 
     public RequestMessage() {
         message = new ArrayList<Byte>();
-        state = RequestParseState.LINE_START;
+        state = RequestState.LINE_START;
         headers = new HashMap<String, String>();
     }
 
@@ -51,11 +51,11 @@ public class RequestMessage {
         this.message = message;
     }
 
-    public RequestParseState getState() {
+    public RequestState getState() {
         return state;
     }
 
-    public void setState(RequestParseState state) {
+    public void setState(RequestState state) {
         this.state = state;
     }
 

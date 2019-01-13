@@ -7,7 +7,7 @@ package edu.xmu.baseConponent;
  * @Author: Ackerman
  * @Create: 2019-01-10 18:10
  */
-public enum RequestParseState {
+public enum RequestState {
     /** 解析完毕 */
     PARSE_OK,
 

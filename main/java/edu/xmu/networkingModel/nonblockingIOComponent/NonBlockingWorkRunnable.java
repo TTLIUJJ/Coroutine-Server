@@ -7,7 +7,7 @@ import java.net.Socket;
 
 /**
  * @Program: soldier
- * @Description:
+ * @Description: 非阻塞IO需要CPU轮询用户数据数据准备好, 如果准备好, 写入内核缓冲区
  * @Author: Ackerman
  * @Create: 2019-01-13 11:42
  */

@@ -1,16 +1,12 @@
 package edu.xmu.networkingModel.coroutineIOComponent;
 
+
+import edu.xmu.baseConponent.RequestMessage;
+import edu.xmu.baseConponent.RequestParseUtil;
+import edu.xmu.baseConponent.RequestState;
 import edu.xmu.baseConponent.http.HttpContext;
 
-import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.net.ServerSocket;
-import java.nio.channels.SelectionKey;
-import java.nio.channels.Selector;
-import java.nio.channels.ServerSocketChannel;
-import java.nio.channels.SocketChannel;
-import java.util.Iterator;
-import java.util.Set;
+import java.util.HashMap;
 
 /**
  * @Program: soldier
@@ -19,89 +15,69 @@ import java.util.Set;
  * @Create: 2019-01-12 11:41
  */
 public class CoroutineIOServer {
-    private int port = 8005;
-    private Selector selector;
+    private HashMap<Integer, HttpContext> fdContextMap;
+    private RequestParseUtil requestParseUtil;
 
-    private void initConfiguration() {
-
+    public CoroutineIOServer() {
+        fdContextMap = new HashMap<>();
+        requestParseUtil = RequestParseUtil.getInstance();
     }
 
-    private void initServerSocket() {
-        ServerSocketChannel serverSocketChannel;
+    public int parseRequest(int client_fd, char []buf) {
+        if (!fdContextMap.containsKey(client_fd)) {
+            HttpContext httpContext = new HttpContext();
+            fdContextMap.put(client_fd, httpContext);
+        }
+
+        byte []bytes = new String(buf).getBytes();
+        HttpContext httpContext = fdContextMap.get(client_fd);
+        RequestMessage rs = httpContext.getRequest().getRequestMessage();
+        RequestState state = innerParseRequest(rs, bytes);
+
+        switch (state) {
+            case PARSE_OK:
+                httpContext.getRequest().initRequestAttribute();
+                return 0;
+
+            case PARSE_MORE:
+
+                return 1;
+
+            default:
+                destroyRequestMessage(client_fd);
+                return -1;
+        }
+    }
+
+    private RequestState innerParseRequest(RequestMessage rs, byte []buf) {
+
+        RequestState state = rs.getState();
 
         try {
-            serverSocketChannel = ServerSocketChannel.open();
-            ServerSocket serverSocket = serverSocketChannel.socket();
-            InetSocketAddress address = new InetSocketAddress(port);
-            serverSocket.bind(address);
-            serverSocketChannel.configureBlocking(false);
+            if (state == RequestState.PARSE_OK ||
+                    state == RequestState.PARSE_ERROR) {
 
-            selector = Selector.open();
-            serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
-        } catch (IOException ioe) {
-            ioe.printStackTrace();
+                return state;
+            }
+
+            if (!rs.isFinishHeader()) {
+                state = requestParseUtil.parseHttpRequestHeader(rs, buf);
+            }
+            if (state == RequestState.PARSE_OK ||
+                    state == RequestState.PARSE_ERROR) {
+
+                return state;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
+
+        return state;
     }
 
-    private void workProcess() {
-        while (true) {
-            int readyChannels = 0;
-            try {
-                readyChannels = selector.select();
-            } catch (IOException ioe) {
-                ioe.printStackTrace();
-            }
-
-            if (readyChannels == 0) {
-                continue;
-            }
-            Set<SelectionKey> readyKeys     = selector.selectedKeys();
-            Iterator<SelectionKey> iterator = readyKeys.iterator();
-
-            while(iterator.hasNext()) {
-                SelectionKey key = iterator.next();
-                iterator.remove();
-                if (!key.isValid()) {
-                    continue;
-                }
-
-                try {
-                    if (key.isAcceptable()) {
-                        ServerSocketChannel server = (ServerSocketChannel) key.channel();
-                        SocketChannel client = server.accept();
-                        if (client == null) {
-                            continue;
-                        }
-                        client.configureBlocking(false);
-                        SelectionKey clientKey = client.register(selector, SelectionKey.OP_READ);
-                        HttpContext httpContext = new HttpContext(selector, clientKey);
-                        clientKey.attach(httpContext);
-                    }
-                    else if (key.isReadable()) {
-                        key.interestOps(key.interestOps() & (~SelectionKey.OP_READ));
-                        HttpContext httpContext = (HttpContext) key.attachment();
-                        // TODO with c-caller finish read
-                        
-                    }
-                    else if (key.isWritable()) {
-                        key.interestOps(key.interestOps() & (~SelectionKey.OP_WRITE));
-                        HttpContext httpContext = (HttpContext) key.attachment();
-                        // TODO with c-caller finish write
-
-//                        System.out.println(httpContext.getRequest());
-
-
-                    }
-                } catch (IOException ioe) {
-                    ioe.printStackTrace();
-                }
-            }
-        }
-    }
-
-    public void start() {
-        initConfiguration();
-        initServerSocket();
-        workProcess();
+    public void destroyRequestMessage(int client_fd) {
+        HttpContext httpContext = fdContextMap.get(client_fd);
+        httpContext = null;
+        fdContextMap.remove(client_fd);
     }
 }

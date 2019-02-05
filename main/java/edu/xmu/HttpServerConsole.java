@@ -42,11 +42,6 @@ public class HttpServerConsole {
                 asynchronousIOServer.start();
                 break;
 
-            case 8005:
-                CoroutineIOServer coroutineIOServer = new CoroutineIOServer();
-                coroutineIOServer.start();
-                break;
-
             default:
                 System.out.println("input error");
         }

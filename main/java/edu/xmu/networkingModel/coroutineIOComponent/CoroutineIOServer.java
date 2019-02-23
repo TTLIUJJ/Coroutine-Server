@@ -20,6 +20,10 @@ public class CoroutineIOServer {
     private static RequestParseUtil requestParseUtil = RequestParseUtil.getInstance();
     private static String parse_error = "parse error";
 
+    public static int test() {
+        return 111;
+    }
+
     public static String parseRequest(int client_fd, String request) {
         try {
 //            if (request == null) {
